@@ -47,13 +47,14 @@ using DataFrames
     end
     @testset "occurance_count" begin
         c1 = occurrence_count(sp)
-        @test c1 isa Int
+        @test c1 isa Int64
         c2 = occurrence_count(sp; country=:RE, basisOfRecord=:PRESERVED_SPECIMEN)
-        @test c2 isa Int
+        @test c2 isa Int64
         @test c1 > c2
     end
-    using DataFrames
-    ocs = occurrence_search(; taxonKey=sp.speciesKey, limit=8000)
-    DataFrame(ocs)
-    GBIF2.enum()
+    @testset "DataFrames" begin
+        ocs = occurrence_search(; taxonKey=sp.speciesKey, limit=1000)
+        df = DataFrame(ocs)
+        @test nrow(df) == 1000
+    end
 end

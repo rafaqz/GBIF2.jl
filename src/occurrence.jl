@@ -154,18 +154,18 @@ function occurrence_count end
 function occurrence_count(species::Species; kw...)
     return occurrence_count(; taxonKey=last(_bestquery(species)[1]), kw...)
 end
-function occurrence_count(; kw...)::Int
+function occurrence_count(; kw...)::Int64
     url = _joinurl(OCCURRENCE_URL, "count")
     query = _format_query(kw, keys(OCCURRENCE_KEY_DESC))
     request = HTTP.get(url; query)
-    return _handle_request(body -> JSON3.read(body, Int), request)
+    return _handle_request(body -> JSON3.read(body, Int64), request)
 end
 function occurrence_count(returntype::Symbol; kw...)
     returntype in keys(INVENTORY_KEYS) || throw(ArgumentError("$inventory not in $INVENTORY_KEYS"))
     url = _joinurl(OCCURRENCE_URL, "counts", inventory)
     query = _format_query((; kw..., taxonKey=key), INVENTORY_KEYS[inventory])
     request = HTTP.get(url; query)
-    return _handle_request(body -> JSON3.read(body, Int), request)
+    return _handle_request(body -> JSON3.read(body, Int64), request)
 end
 
 function occurrence_count_schema() 
