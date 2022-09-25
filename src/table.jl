@@ -1,4 +1,10 @@
 
+"""
+    Table <: AbstractVector
+
+A generic table object to hold both `Occurrence` and `Species` data,
+and implement the Tables.jl interface.
+"""
 struct Table{T,A} <: AbstractVector{T}
     query::Dict{Symbol,Any}
     offset::Int

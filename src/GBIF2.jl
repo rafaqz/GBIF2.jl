@@ -12,6 +12,6 @@ include("parameters.jl")
 include("utils.jl")
 include("species.jl")
 include("occurrence.jl")
-include("results.jl")
+include("table.jl")
 
 end # module
