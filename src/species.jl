@@ -69,10 +69,9 @@ Query the GBIF `species` api, returning a single `Species`.
     `(:parents, :children, :related, :synonyms)`. 
 - `datasetKey`: can be specified with a second argumen `:related`.
 """
-function species(sp::Species; kw...)
+function species(sp::Species, args...; kw...)
     query = _bestquery(sp)
-    isnothing(query) && error("Species has no keys to find species data with")
-    species(last(first(query)); kw...)
+    species(last(first(query)), args...; kw...)
 end
 function species(key::Int; kw...)
     url = _joinurl(SPECIES_URL, string(key))
@@ -80,8 +79,8 @@ function species(key::Int; kw...)
     request = HTTP.get(url; query)
     return _handle_request(Species, request)
 end
-function species(key::Int, subpath::Symbol; kw...)
-    subpath in keys(SPECIES_RESULTTYPE) || throw(ArgumentError("subpath $subpath no in $(keys(SPECIES_RESULTTYPE))"))
+function species(key::Int, resulttype::Symbol; kw...)
+    resulttype in keys(SPECIES_RESULTTYPE) || throw(ArgumentError("resulttype $resulttype not in $(keys(SPECIES_RESULTTYPE))"))
     url = _joinurl(SPECIES_URL, string(key), string(subpath))
     query = _format_query(kw, SPECIES_RESULTTYPE[subpath])
     request = HTTP.get(url; query)
@@ -99,6 +98,8 @@ Query the GBIF `species` api, returning a list of `Species`.
 
 We use keywords exactly as in the [GBIF api](https://www.gbif.org/developer/species).
 
+You can find keyword enum values with the `[GBIF2.enum](@ref)` function.
+
 $(_keydocs(SPECIES_KEY_DESC, SPECIES_KEYS))
 """
 species_list(name::String; kw...) = species_list(; name, kw...)
@@ -106,7 +107,7 @@ function species_list(; kw...)
     url = SPECIES_URL
     query = _format_query(kw, SPECIES_KEYS)
     request = HTTP.get(url; query)
-    return _handle_request(body -> Results{Species}(query, body), request)
+    return _handle_request(body -> Table{Species}(query, body), request)
 end
 
 """
@@ -116,9 +117,11 @@ Query the GBIF `species/match` api, returning the single closest `Species`.
 
 `match` uses fuzzy search.
 
-## Keyword arguments
+## Keywords
 
 We use keywords exactly as in the [GBIF api](https://www.gbif.org/developer/species).
+
+You can find keyword enum values with the `[GBIF2.enum](@ref)` function.
 
 $(_keydocs(SPECIES_KEY_DESC, SPECIES_MATCH_KEYS))
 """
@@ -126,12 +129,16 @@ function species_match end
 species_match(name; kw...) = species_match(; name, kw...)
 function species_match(; kw...)
     url = SPECIES_MATCH_URL
-    query = pairs(_format_query(kw, SPECIES_MATCH_KEYS))
+    query = _format_query(kw, SPECIES_MATCH_KEYS)
     request = HTTP.get(url; query)
     return _handle_request(request) do body
         json = JSON3.read(body)
-        json.matchType == "NONE" && @warn "No match for your request, $json"
-        Species(json)
+        if json.matchType == "NONE" 
+            @warn "No match for your request, $json"
+            nothing
+        else
+            Species(json)
+        end
     end
 end
 
@@ -148,11 +155,30 @@ $(_keydocs(SPECIES_KEY_DESC, SPECIES_SEARCH_KEYS))
 """
 function species_search end
 species_search(q; kw...) = species_search(; q, kw...)
-function species_search(; kw...)
+function species_search(; limit=20, offset=0, kw...)
     url = SPECIES_SEARCH_URL
-    query = _format_query(kw, SPECIES_SEARCH_KEYS)
-    request = HTTP.get(url; query)
-    return _handle_request(body -> Results{Species}(query, body), request)
+    if limit > 300
+        offsets = offset:300:(limit + offset)
+        lastlimit = limit - last(offsets)
+        results = species_search(; limit=300, offset, kw...)
+        for offset in offsets[begin+1:end-1]
+            nextresults = species_search(; limit=300, offset, kw...)
+            if length(nextresults) < 300
+                results = vcat(results, nextresults)
+                @info "$(length(results)) species found, limit was $limit"
+                return results
+            else
+                results = vcat(results, nextresults)
+            end
+        end
+        lastresult = species_search(; limit=lastlimit, offset=last(offsets), kw...)
+        return vcat(results, lastresult)
+    else
+        # Make a single request
+        query = _format_query((; limit, offset, kw...), SPECIES_SEARCH_KEYS)
+        request = HTTP.get(url; query)
+        return _handle_request(body -> Table{Species}(query, body), request)
+    end
 end
 
 function Base.NamedTuple(species::Species)
@@ -170,9 +196,9 @@ end
 
 function _bestquery(species::Species)
     for key in (
-        :speciesKey, :genusKey, :familyKey, :orderKey, :classKey, :phylumKey, :kingdomKey,
+        :taxonKey, :speciesKey, :genusKey, :familyKey, :orderKey, :classKey, :phylumKey, :kingdomKey,
     )
         key in keys(object(species)) && return [key => getproperty(object(species), key)]
     end
-    return nothing
+    error("Species has no keys available to use")
 end

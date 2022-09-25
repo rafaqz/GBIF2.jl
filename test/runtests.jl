@@ -1,6 +1,7 @@
 using GBIF2
 using Test
 using HTTP
+using DataFrames
 
 
 @testset "GBIF2.jl" begin
@@ -12,8 +13,7 @@ using HTTP
         @test_throws ArgumentError species_match("Lalage newtoni"; continent="Africa")
     end
     @testset "species" begin
-        sp1 = species(sp.speciesKey, :references)
-        sp1.results[1]
+        sp1 = species(sp)
         @test sp1 isa GBIF2.Species
         @test sp1.species == "Coracina newtoni"
         @test sp1.synonym == false
@@ -28,7 +28,7 @@ using HTTP
         results = species_list("Lalage newtoni")
         sp1 = results[1]
         @test sp1 isa GBIF2.Species
-        @test sp1.genus == "Lalage"
+        @test sp1.genus == "Coracina"
         @test_throws ArgumentError species_search("Lalage newtoni"; continent="Africa")
     end
     @testset "species_search" begin
@@ -38,4 +38,22 @@ using HTTP
         @test sp1.genus == "Lalage"
         @test_throws ArgumentError species_search("Lalage newtoni"; continent="Africa")
     end
+    @testset "occurance_search" begin
+        results = occurrence_search(sp; continent=:AFRICA)
+        oc1 = results[1]
+        @test oc1 isa GBIF2.Occurrence
+        @test oc1.genus == "Coracina"
+        @test_throws ArgumentError species_search("Lalage newtoni"; not_a_keyword=2)
+    end
+    @testset "occurance_count" begin
+        c1 = occurrence_count(sp)
+        @test c1 isa Int
+        c2 = occurrence_count(sp; country=:RE, basisOfRecord=:PRESERVED_SPECIMEN)
+        @test c2 isa Int
+        @test c1 > c2
+    end
+    using DataFrames
+    ocs = occurrence_search(; taxonKey=sp.speciesKey, limit=8000)
+    DataFrame(ocs)
+    GBIF2.enum()
 end

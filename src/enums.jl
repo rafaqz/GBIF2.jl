@@ -187,4 +187,13 @@ const ENUMS = (
    ),
 )
 
+"""
+    enum()
+    enum(k::Symbol)
+
+Get the enum values for the keyword `k`, or for all enums in a `NamedTuple`.
+
+Enum keywords are in $(keys(ENUMS)).
+"""
 enum(k::Symbol) = ENUMS[k]
+enum() = ENUMS

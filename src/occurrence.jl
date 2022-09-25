@@ -4,14 +4,6 @@ const OCCURRENCE_DOWNLOAD_URL = GBIF_URL * "occurrence/download"
 
 const OCCURRENCE_SEARCH_KEYS = (:q, :basisOfRecord, :catalogNumber, :classKey, :collectionCode, :continent, :coordinateUncertaintyInMeters, :country, :crawlId, :datasetId, :datasetKey, :datasetName, :decimalLatitude, :decimalLongitude, :depth, :elevation, :establishmentMeans, :eventDate, :eventId, :familyKey, :gadmGid, :gadmLevel0Gid, :gadmLevel1Gid, :gadmLevel2Gid, :gadmLevel3Gid, :genusKey, :geometry, :hasCoordinate, :hasGeospatialIssue, :geoDistance, :identifiedBy, :identifiedByID, :institutionCode, :issue, :kingdomKey, :lastInterpreted, :license, :locality, :mediaType, :modified, :month, :networkKey, :occurrenceId, :occurrenceStatus, :orderKey, :organismId, :organismQuantity, :organismQuantityType, :otherCatalogNumbers, :phylumKey, :preparations, :programme, :projectId, :protocol, :publishingCountry, :publishingOrg, :recordNumber, :recordedBy, :recordedByID, :relativeOrganismQuantity, :repatriated, :sampleSizeUnit, :sampleSizeValue, :samplingProtocol, :scientificName, :speciesKey, :stateProvince, :subgenusKey, :taxonKey, :typeStatus, :verbatimScientificName, :verbatimTaxonId, :waterBody, :year, :facet, :facetMincount, :facetMultiselect, :paging, :offset, :limit)
 
-const INVENTORY_KEYS = (
-    basisOfRecord = (),
-    countries = :publishingCountry,
-    datasets = (:country, :taxonKey),
-    publishingCountry = (:publishingCountry,),
-    year = (:year,)
-)
-
 const OCCURRENCE_SUBPATHS = (:fragment, :verbatim, Symbol(""))
 
 """
@@ -44,12 +36,12 @@ Tables.rowaccess(::AbstractVector{Occurrence}) = true
 Tables.schema(::AbstractVector{Occurrence}) = Tables.schema(Occurrence)
 
 """
-    occurrence(key; [criteria])
-    occurrence(datasetKey, occurrenceID; [criteria])
+    occurrence(key; [returntype])
+    occurrence(datasetKey, occurrenceID; [returntype])
 
-Retrieve a single occurrence.
+Retrieve a single occurrence by its `key` or `datasetKey` and `occurrenceID`.
 
-`criteria` can be `:fragment` or `:verbatim`.
+- `returntype` modifies the return value, and can be `:fragment` or `:verbatim`.
 """
 function occurrence(key; criteria=Symbol(""))
     criteria in OCCURRENCE_SUBPATHS || throw(ArgumentError("$criteria not in $OCCURRENCE_SUBPATHS"))
@@ -65,12 +57,12 @@ function occurrence(datasetKey, occurrenceID; criteria=Symbol(""))
 end
 
 const OCCURRENCE_SEARCH_RETURNTYPE = (
-    catalogNumber   = "Search that returns matching catalog numbers. Results are ordered by relevance.",
-    collectionCode  = "Search that returns matching collection codes. Results are ordered by relevance.",
-    occurrenceId    = "Search that returns matching occurrence identifiers. Results are ordered by relevance.",
-    recordedBy      = "Search that returns matching collector names. Results are ordered by relevance.",
-    recordNumber    = "Search that returns matching record numbers. Results are ordered by relevance.",
-    institutionCode = "Search that returns matching institution codes. Results are ordered by relevance.",
+    catalogNumber   = "Search that returns matching catalog numbers. Table are ordered by relevance.",
+    collectionCode  = "Search that returns matching collection codes. Table are ordered by relevance.",
+    occurrenceId    = "Search that returns matching occurrence identifiers. Table are ordered by relevance.",
+    recordedBy      = "Search that returns matching collector names. Table are ordered by relevance.",
+    recordNumber    = "Search that returns matching record numbers. Table are ordered by relevance.",
+    institutionCode = "Search that returns matching institution codes. Table are ordered by relevance.",
 )
 
 """
@@ -91,30 +83,41 @@ $(_argdocs(OCCURRENCE_SEARCH_RETURNTYPE))
 
 We use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/species).
 
+You can find keyword enum values with the `[GBIF2.enum](@ref)` function.
+
 GBIF range queries work by putting values in a `Tuple`, e.g. `elevation=(10, 100)`.
 
 $(_keydocs(OCCURRENCE_KEY_DESC, keys(OCCURRENCE_KEY_DESC)))
 """
+function occurrence_search end
+function occurrence_search(species::Species; kw...)
+    occurrence_search(; _bestquery(species)..., kw...)
+end
 occurrence_search(q; kw...) = occurrence_search(; q, kw...)
 function occurrence_search(; limit=20, offset=0, kw...)
     url = OCCURRENCE_SEARCH_URL
     if limit > 300
         offsets = offset:300:(limit + offset)
         lastlimit = limit - last(offsets)
-        mostresults = [occurrence_search(; limit=300, offset, kw...) for offset in offsets[begin:end-1]]
+        results = occurrence_search(; limit=300, offset, kw...)
+        for offset in offsets[begin+1:end-1]
+            nextresults = occurrence_search(; limit=300, offset, kw...)
+            if length(nextresults) < 300
+                results = vcat(results, nextresults)
+                @info "$(length(results)) occurrences found, limit was $limit"
+                return results
+            else
+                results = vcat(results, nextresults)
+            end
+        end
         lastresult = occurrence_search(; limit=lastlimit, offset=last(offsets), kw...)
-        return vcat(mostresults..., lastresult)
+        return vcat(results, lastresult)
     else
         # Make a single request
         query = _format_query((; limit, offset, kw...), keys(OCCURRENCE_KEY_DESC))
         request = HTTP.get(url; query)
-        return _handle_request(body -> Results{Occurrence}(query, body), request)
+        return _handle_request(body -> Table{Occurrence}(query, body), request)
     end
-end
-function occurrence_search(species::Species; kw...)
-    query = _bestquery(species)
-    isnothing(query) && error("Species has no keys to search occurrences with")
-    return occurrence_search(; query..., kw...)
 end
 function occurrence_search(q, returntype::Symbol; limit=20)
     allowed_rt = keys(OCCURRENCE_SEARCH_RETURNTYPE)
@@ -122,33 +125,55 @@ function occurrence_search(q, returntype::Symbol; limit=20)
     url = _joinurl(OCCURRENCE_SEARCH_URL, returntype)
     query = _format_query((; q, limit), (:q, :limit))
     request = HTTP.get(url; query)
-    return _handle_request(body -> Results{Occurrence}(query, body), request)
+    return _handle_request(body -> Table{Occurrence}(query, body), request)
 end
+
+const OCCURRENCE_COUNT_RETURNTYPE = (
+    basisOfRecord = (),
+    countries = :publishingCountry,
+    datasets = (:country, :taxonKey),
+    publishingCountry = (:publishingCountry,),
+    year = (:year,)
+)
 
 """
     occurrence_count(; kw...)
-    occurrence_count(inventory; kw...)
+    occurrence_count(returntype; kw...)
 
-If the `inventory` argument is use, invetory accross all groups will be returned.
-The category for grouping can be chosen from `$INVENTORY_KEYS`.
+If the `returntype` argument is used, inventory accross groups will be returned.
+The returntype and matching keywords are chosen from `$OCCURRENCE_COUNT_RETURNTYPE`.
 
+# Keywords
 
-We use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/species).
+- `taxonKey`: is the most useful key.
 
-$(_keydocs(OCCURRENCE_KEY_DESC, keys(OCCURRENCE_KEY_DESC)))
+Occurrence counts have a complicated schema of allowed keyword combinations.
+You can access these from the GBIF api using `occurrence_count_schema()`.
 """
+function occurrence_count end
+function occurrence_count(species::Species; kw...)
+    return occurrence_count(; taxonKey=last(_bestquery(species)[1]), kw...)
+end
 function occurrence_count(; kw...)::Int
     url = _joinurl(OCCURRENCE_URL, "count")
     query = _format_query(kw, keys(OCCURRENCE_KEY_DESC))
     request = HTTP.get(url; query)
     return _handle_request(body -> JSON3.read(body, Int), request)
 end
-function occurrence_count(inventory::Symbol; kw...)
-    inventory in keys(INVENTORY_KEYS) || throw(ArgumentError("$inventory not in $INVENTORY_KEYS"))
+function occurrence_count(returntype::Symbol; kw...)
+    returntype in keys(INVENTORY_KEYS) || throw(ArgumentError("$inventory not in $INVENTORY_KEYS"))
     url = _joinurl(OCCURRENCE_URL, "counts", inventory)
-    query = _format_query(kw, INVENTORY_KEYS[inventory])
+    query = _format_query((; kw..., taxonKey=key), INVENTORY_KEYS[inventory])
     request = HTTP.get(url; query)
     return _handle_request(body -> JSON3.read(body, Int), request)
+end
+
+function occurrence_count_schema() 
+    url = _joinurl(OCCURRENCE_URL, "count", "schema")
+    request = HTTP.get(url; )
+    return first.(_handle_request(request) do body 
+        JSON3.read(body, Vector{NamedTuple{(:dimensions,),Tuple{Vector{NamedTuple{(:key,:type)}}}}}) 
+    end)
 end
 
 const LAST_DOWNLOAD = Base.RefValue{String}("")
@@ -184,7 +209,6 @@ Prameter values can modify the kind of match by using a pair:
 |:isNull    | has an empty value    |
 |:isNotNull | has a non-empty value | 
 
-
 # Keywords
 
 - `username`: String username for a gbif.org account
@@ -193,10 +217,9 @@ Prameter values can modify the kind of match by using a pair:
 Allowed query keywords are: 
 `$(keys(occurrence_request_parameters()))`
 """
+function occurrence_request end
 function occurrence_request(species::Species; kw...)
-    query = _bestquery(species)
-    isnothing(query) && error("Species has no keys to request occurrences for")
-    occurrence_request(; query..., kw...)
+    occurrence_request(; _bestquery(species)..., kw...)
 end
 function occurrence_request(; 
     username, notificationAddresses=nothing, format="SIMPLE_CSV", geoDistance=nothing, type="and", kw...

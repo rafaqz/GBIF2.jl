@@ -10,8 +10,8 @@ const GBIF_URL = "http://api.gbif.org/v1/"
 include("enums.jl")
 include("parameters.jl")
 include("utils.jl")
-include("results.jl")
 include("species.jl")
 include("occurrence.jl")
+include("results.jl")
 
 end # module
