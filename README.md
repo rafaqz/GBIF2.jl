@@ -10,13 +10,13 @@ The goals of GBIF2 is to follow the GBIF api as completely and correctly as poss
 Its main design features are:
 - Single results are `Occurrence` or `Species` objects with all GBIF fields available using `object.fieldname`, 
    returning missing if not returned by a specific query.
-- Multiple results are returned as a Tables.jl compatible `Table` of ``Occurrence` or `Species` rows. 
+- Multiple results are returned as a Tables.jl compatible `Table` of `Occurrence` or `Species` rows. 
     This `Table` can be converted to a `DataFrame` or writted directly to disk using CSV.jl and similar packages.
-- All GBIF enum keys are checked for correctness before querying so that only correct queries can be sent and 
-    clear error messages point to errors in code.
+- All GBIF enum keys are checked for correctness before querying so that only correct queries can be sent. 
+    Clear messages point to errors in queries.
 - A `limit` above `300` items at a time is allowed, unlike in the original API, by making
     multiple reuests and joining the results.
-- For larger queries, download requests are handled with gbif.org account authentication.
+- For even larger queries, download requests are handled with gbif.org account authentication.
 
 ## A quick example
 
