@@ -5,17 +5,18 @@
 [![Build Status](https://github.com/rafaqz/GBIF2.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/rafaqz/GBIF2.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/rafaqz/GBIF2.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/rafaqz/GBIF2.jl)
 
-GBIF2 attempts to follow the GBIF api as closecly as possible, and to be as
-complete as possible.
+The goals of GBIF2 is to follow the GBIF api as completely and correctly as possible.
 
 Its main design features are:
-- multiple results for both species and occurrences are Tables.jl compatible,
-  and can be converted to a `DataFrame` or writted directly using CSV.jl and similar packages.
-- all enum keys are checked before querying.
-- A `limit` above `300` are allowed, unlike in the original API, by making
-  multiple reuests and joining the results.
-- for larger workloads, download requests are handled with gbif.org
-  account authentication.
+- Single results are `Occurrence` or `Species` objects with all GBIF fields available using `object.fieldname`, 
+   returning missing if not returned by a specific query.
+- Multiple results are returned as a Tables.jl compatible `Table` of ``Occurrence` or `Species` rows. 
+    This `Table` can be converted to a `DataFrame` or writted directly to disk using CSV.jl and similar packages.
+- All GBIF enum keys are checked for correctness before querying so that only correct queries can be sent and 
+    clear error messages point to errors in code.
+- A `limit` above `300` items at a time is allowed, unlike in the original API, by making
+    multiple reuests and joining the results.
+- For larger queries, download requests are handled with gbif.org account authentication.
 
 ## A quick example
 
@@ -34,7 +35,7 @@ true
 julia> sp.vernacularName
 missing
 
-# Det a more detail object with `species`:
+# Get a more detailed object with `species`:
 julia> sp_detailed = species(sp);
 
 julia> sp_detailed.vernacularName
