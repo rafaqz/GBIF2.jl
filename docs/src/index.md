@@ -30,7 +30,7 @@ species_search
 `Occurrence` objects and queries correspond closely to the [GBIF
 occurrence api](https://www.gbif.org/developer/occurrence).
 
-```
+```@docs
 Occurrence
 occurrence
 occurrence_search
