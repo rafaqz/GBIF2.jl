@@ -27,6 +27,24 @@ const SPECIES_RESULTTYPE = (
     typeSpecimens = (),
 )
 
+"""
+    Species
+
+Wrapper object for information returned by [`species`](@ref), [`species_list` ](@ref),
+[`species_match` ](@ref) or [`species_search`](@ref) queries. These often are species,
+but a more correctly taxa, as it may be e.g. "Aves" for all birds. We use `Species`
+for naming consistency with the GBIF API.
+
+Species also serve as rows in [`Table`](@ref), and are converted to rows in a DataFrame
+or CSV automatically by the Tables.jl interface.
+
+`Species` properties are accessed with `.`, e.g. `sp.kingdom`.
+Note that these queries do not all return all properties, and not all records contain
+all properties in any case. Missing properties simply return `missing`.
+
+The possible properties of a `Species` object are:
+$(species_properties())
+"""
 struct Species
     obj::JSON3.Object
 end
@@ -50,7 +68,7 @@ Tables.schema(::Type{<:Species}) =
 
 Tables.istable(::AbstractVector{Species}) = true
 Tables.rowaccess(::AbstractVector{Species}) = true
-Tables.schema(::AbstractVector{Species}) = Tables.schema(Occurrence)
+Tables.schema(::AbstractVector{Species}) = Tables.schema(Species)
 
 """
     species(key; kw...)
@@ -58,16 +76,86 @@ Tables.schema(::AbstractVector{Species}) = Tables.schema(Occurrence)
 
 Query the GBIF `species` api, returning a single `Species`.
 
-- `key`: a key 
-- `resulttype`: instead of a `Species`, return an object in `$(keys(SPECIES_RESULTTYPE))`. 
-    The return value will be a raw JSON3.Object`, but its `propertynames` can be 
-    checked and used to access data.
+- `key`: a species key, or `Species` object from another search that a key can be
+    obtained from.
+- `resulttype`: set this so that instead of a `Species`, `species` will return an
+    object in `$(keys(SPECIES_RESULTTYPE))`. The return value will be a raw JSON3.Object`,
+    but its `propertynames` can be checked and used to access data.
+
+# Example
+
+Here we find a species with `species_search`, and then obtain the complete record with
+`species`.
+
+```julia
+julia> using GBIF2
+julia> tbl = species_search("Falco punctatus")
+20-element GBIF2.Table{GBIF2.Species, JSON3.Array{JSON3.Object, Vector{UInt8}, SubArray{
+UInt64, 1, Vector{UInt64}, Tuple{UnitRange{Int64}}, true}}}
+┌──────────┬──────────┬───────────────┬───────────────┬────────────┬─────────┬──────────
+│  kingdom │   phylum │         class │         order │     family │   genus │         ⋯
+│  String? │  String? │       String? │       String? │    String? │ String? │         ⋯
+├──────────┼──────────┼───────────────┼───────────────┼────────────┼─────────┼──────────
+│ Animalia │  missing │          Aves │ Falconiformes │ Falconidae │ missing │ Falco p ⋯
+│ Animalia │  missing │          Aves │       missing │ Falconidae │   Falco │ Falco p ⋯
+│  missing │  missing │          Aves │ Falconiformes │ Falconidae │   Falco │ Falco p ⋯
+│  missing │ Chordata │       missing │       missing │ Falconidae │   Falco │ Falco p ⋯
+│ Animalia │ Chordata │          Aves │ Falconiformes │ Falconidae │   Falco │ Falco p ⋯
+│ Animalia │ Chordata │          Aves │ Falconiformes │ Falconidae │   Falco │ Falco p ⋯
+│  Metazoa │ Chordata │          Aves │ Falconiformes │ Falconidae │   Falco │ Falco p ⋯
+│ Animalia │  missing │       missing │ Falconiformes │ Falconidae │ missing │ Falco p ⋯
+│  Metazoa │ Chordata │          Aves │ Falconiformes │ Falconidae │   Falco │ Falco p ⋯
+│    ⋮     │    ⋮     │       ⋮       │       ⋮       │     ⋮      │    ⋮    │         ⋱
+└──────────┴──────────┴───────────────┴───────────────┴────────────┴─────────┴──────────
+                                                          35 columns and 11 rows omitted
+
+julia> species(tbl[6])
+GBIF2.Species({
+                   "key": 102091853,
+                "nubKey": 2481005,
+               "nameKey": 4400647,
+               "taxonID": "175650",
+               "kingdom": "Animalia",
+                "phylum": "Chordata",
+                 "order": "Falconiformes",
+                "family": "Falconidae",
+                 "genus": "Falco",
+               "species": "Falco punctatus",
+            "kingdomKey": 101683523,
+             "phylumKey": 102017110,
+              "classKey": 102085317,
+              "orderKey": 102091762,
+             "familyKey": 102091763,
+              "genusKey": 102091765,
+            "speciesKey": 102091853,
+            "datasetKey": "9ca92552-f23a-41a8-a140-01abaa31c931",
+             "parentKey": 102091765,
+                "parent": "Falco",
+        "scientificName": "Falco punctatus Temminck, 1821",
+         "canonicalName": "Falco punctatus",
+        "vernacularName": "Mauritius Kestrel",
+            "authorship": "Temminck, 1821",
+              "nameType": "SCIENTIFIC",
+                  "rank": "SPECIES",
+                "origin": "SOURCE",
+       "taxonomicStatus": "ACCEPTED",
+   "nomenclaturalStatus": [],
+        "numDescendants": 0,
+           "lastCrawled": "2022-10-10T18:15:33.989+00:00",
+       "lastInterpreted": "2022-10-10T19:16:16.841+00:00",
+                "issues": [
+                            "SCIENTIFIC_NAME_ASSEMBLED"
+                          ],
+               "synonym": false,
+                 "class": "Aves"
+})
+```
 
 ## Keyword arguments
 
 - `language`: can be specified for a single argument or with second argument in
     `(:parents, :children, :related, :synonyms)`. 
-- `datasetKey`: can be specified with a second argumen `:related`.
+- `datasetKey`: can be specified, with a second argument `:related`.
 """
 function species(sp::Species, args...; kw...)
     query = _bestquery(sp)
@@ -88,11 +176,35 @@ function species(key::Integer, resulttype::Symbol; kw...)
 end
 
 """
-    species(; kw...)
-    species(key; kw...)
-    species(key, resulttype; kw...)
+    species_list(; kw...)
+    species_list(key; kw...)
+    species_list(key, resulttype; kw...)
 
-Query the GBIF `species` api, returning a list of `Species`.
+Query the GBIF `species_list` api, returning a table of `Species` that exactly
+match your query.
+
+# Example
+
+```julia
+using GBIF2
+species_list(; name="Lalage newtoni")
+
+# output
+8-element GBIF2.Table{GBIF2.Species, JSON3.Array{JSON3.Object, Vector{UInt8}, SubArray{UInt64, 1, Vector{UInt64}, Tuple{UnitRange{Int64}}, true}}}
+┌──────────┬──────────┬───────────────┬───────────────┬───────────────┬──────────┬──────────────────┬───────────┬─────────┬──────────┬──────────────┬────────────────┬───────
+│  kingdom │   phylum │         class │         order │        family │    genus │          species │       key │  nubKey │  nameKey │      taxonID │ sourceTaxonKey │ king ⋯
+│  String? │  String? │       String? │       String? │       String? │  String? │          String? │    Int64? │  Int64? │   Int64? │      String? │         Int64? │      ⋯
+├──────────┼──────────┼───────────────┼───────────────┼───────────────┼──────────┼──────────────────┼───────────┼─────────┼──────────┼──────────────┼────────────────┼───────
+│ Animalia │ Chordata │          Aves │ Passeriformes │ Campephagidae │ Coracina │ Coracina newtoni │   8385394 │ missing │ 18882488 │ gbif:8385394 │      176651982 │      ⋯
+│ Animalia │  missing │          Aves │       missing │ Campephagidae │   Lalage │   Lalage newtoni │ 100144670 │ 8385394 │  5976204 │        06014 │        missing │  128 ⋯
+│ Animalia │  missing │          Aves │ Passeriformes │ Campephagidae │  missing │   Lalage newtoni │ 133165079 │ 8385394 │  5976204 │        18380 │        missing │  135 ⋯
+│ Animalia │ Chordata │          Aves │ Passeriformes │ Campephagidae │   Lalage │   Lalage newtoni │ 161400685 │ 8385394 │ 18882488 │       895898 │        missing │  134 ⋯
+│  missing │  missing │       missing │       missing │       missing │ Bossiaea │   Lalage newtoni │ 165585935 │ missing │ 18882488 │      6924877 │        missing │    m ⋯
+│ Animalia │  missing │          Aves │ Passeriformes │ Campephagidae │   Lalage │   Lalage newtoni │ 165923305 │ 8385394 │ 18882488 │        19393 │        missing │  100 ⋯
+│ Animalia │ Chordata │          Aves │ Passeriformes │ Campephagidae │   Lalage │   Lalage newtoni │ 168010293 │ 8385394 │  5976204 │       181376 │        missing │  167 ⋯
+│ Animalia │ Chordata │ Passeriformes │          Aves │ Campephagidae │   Lalage │   Lalage newtoni │ 176651982 │ 8385394 │ 18882488 │     22706569 │        missing │  202 ⋯
+└──────────┴──────────┴───────────────┴───────────────┴───────────────┴──────────┴──────────────────┴───────────┴─────────┴──────────┴──────────────┴────────────────┴───────
+```
 
 ## Keyword arguments
 
@@ -113,9 +225,45 @@ end
 """
     species_match(; kw...)
 
-Query the GBIF `species/match` api, returning the single closest `Species`.
+Query the GBIF `species/match` api, returning the single closest `Species`
+using fuzzy search.
 
-`match` uses fuzzy search.
+The results are not particularly detailed, this can be improved by calling 
+`species(res)` on the result of `species_match` to query for the full dataset.
+
+# Example
+
+```julia
+using GBIF2
+sp = species_match("Lalage newtoni")
+
+# output
+GBIF2.Species({
+           "usageKey": 8385394,
+   "acceptedUsageKey": 2486791,
+     "scientificName": "Lalage newtoni (Pollen, 1866)",
+      "canonicalName": "Lalage newtoni",
+               "rank": "SPECIES",
+             "status": "SYNONYM",
+         "confidence": 98,
+          "matchType": "EXACT",
+            "kingdom": "Animalia",
+             "phylum": "Chordata",
+              "order": "Passeriformes",
+             "family": "Campephagidae",
+              "genus": "Coracina",
+            "species": "Coracina newtoni",
+         "kingdomKey": 1,
+          "phylumKey": 44,
+           "classKey": 212,
+           "orderKey": 729,
+          "familyKey": 9284,
+           "genusKey": 2482359,
+         "speciesKey": 2486791,
+            "synonym": true,
+              "class": "Aves"
+})
+```
 
 ## Keywords
 
@@ -145,7 +293,41 @@ end
 """
     species_search([q]; kw...)
 
-Query the GBIF `species/search` api, returning many results in a table.
+Query the GBIF `species/search` api, returning many results in a [`GBIF2.Table`](@ref).
+
+# Example
+
+```julia
+using GBIF2
+sp = species_search("Psittacula eques")
+
+# output
+20-element GBIF2.Table{GBIF2.Species, JSON3.Array{JSON3.Object, Vector{UInt8}, SubArray{UInt64, 1,
+Vector{UInt64}, Tuple{UnitRange{Int64}}, true}}}
+┌──────────┬──────────┬────────────────┬────────────────┬───────────────┬──────────────┬───────────
+│  kingdom │   phylum │          class │          order │        family │        genus │          ⋯
+│  String? │  String? │        String? │        String? │       String? │      String? │          ⋯
+├──────────┼──────────┼────────────────┼────────────────┼───────────────┼──────────────┼───────────
+│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │          ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │   Psitta ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │   Psitta ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │          ⋯
+│ Animalia │  missing │        missing │ Psittaciformes │ Psittaculidae │      missing │   Psitta ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │   Psitta ⋯
+│  missing │  missing │        missing │        missing │       missing │   Psittacula │   Psitta ⋯
+│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
+│ Animalia │  missing │           Aves │        missing │   Psittacidae │   Psittacula │   Psitta ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │    Psitt ⋯
+│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
+│ ANIMALIA │ CHORDATA │ PSITTACIFORMES │           AVES │   PSITTACIDAE │ Alexandrinus │ Alexandr ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │    Psitt ⋯
+│ Animalia │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │   Psitta ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
+│    ⋮     │    ⋮     │       ⋮        │       ⋮        │       ⋮       │      ⋮       │          ⋱
+└──────────┴──────────┴────────────────┴────────────────┴───────────────┴──────────────┴───────────
+                                                                      35 columns and 4 rows omitted
+```
 
 ## Keyword arguments
 

@@ -1,3 +1,6 @@
+# These are GBIF api enums, rather than Julia enums.
+# We also include the doc string from the gbif online docs
+# so we can include it in docs here.
 const ENUMS = (
     basisOfRecord = Dict(
         :FOSSIL_SPECIMEN => "An occurrence record describing a fossilized specimen.",

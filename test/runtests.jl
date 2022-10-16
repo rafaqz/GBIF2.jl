@@ -3,7 +3,6 @@ using Test
 using HTTP
 using DataFrames
 
-
 @testset "GBIF2.jl" begin
     sp = species_match("Lalage newtoni"; class="Aves", verbose=true)
     @testset "species_match" begin
@@ -38,23 +37,52 @@ using DataFrames
         @test sp1.genus == "Lalage"
         @test_throws ArgumentError species_search("Lalage newtoni"; continent="Africa")
     end
-    @testset "occurance_search" begin
-        results = occurrence_search(sp; continent=:AFRICA)
+    @testset "occurrence_search" begin
+        results = occurrence_search(sp)
         oc1 = results[1]
         @test oc1 isa GBIF2.Occurrence
-        @test oc1.genus == "Coracina"
+        @test oc1.genus == "Hippophae"
         @test_throws ArgumentError species_search("Lalage newtoni"; not_a_keyword=2)
+        results = occurrence_search(sp; returntype=:catalogNumber)
+        @test results isa AbstractVector{<:String} # TODO maybe it shouls be specialised to Int
     end
-    @testset "occurance_count" begin
+    @testset "occurrence_count" begin
         c1 = occurrence_count(sp)
         @test c1 isa Int64
         c2 = occurrence_count(sp; country=:RE, basisOfRecord=:PRESERVED_SPECIMEN)
         @test c2 isa Int64
         @test c1 > c2
     end
+    @testset "occurrence_count_schema" begin
+        # Just run it
+        GBIF2.occurrence_count_schema() 
+    end
+    @testset "occurrence_request" begin
+        # Need to look at the best way to test this given
+        # the password requiements and download delay
+    end
     @testset "DataFrames" begin
-        ocs = occurrence_search(; taxonKey=sp.speciesKey, limit=1000)
-        df = DataFrame(ocs)
-        @test nrow(df) == 1000
+        @testset "DataFrames from Occurrence" begin
+            ocs = occurrence_search(; taxonKey=sp.speciesKey, limit=1000)
+            df = DataFrame(ocs)
+            @test nrow(df) == 1000
+            @test names(df) == string.(collect(Tables.propertynames(ocs)))
+            @testset "from a subset vector also" begin
+                df = DataFrame(ocs[1:500])
+                @test nrow(df) == 500
+                @test names(df) == string.(collect(Tables.propertynames(ocs)))
+            end
+        end
+        @testset "DataFrames from Species" begin
+            sps = species_list("Lalage newtoni"; limit=5)
+            df = DataFrame(sps)
+            @test nrow(df) == 5
+            @test names(df) == string.(collect(propertynames(sps))) == string.(collect(propertynames(first((sps)))))
+            @testset "from a subset vector also" begin
+                df = DataFrame(sps[1:3])
+                @test nrow(df) == 3
+                @test names(df) == string.(collect(Tables.propertynames(sps)))
+            end
+        end
     end
 end
