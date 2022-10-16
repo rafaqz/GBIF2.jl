@@ -218,14 +218,14 @@ function occurrence_search(; returntype=nothing, limit=20, offset=0, kw...)
         url = _joinurl(OCCURRENCE_SEARCH_URL, returntype)
         query = _format_query((; limit, kw...), keys(OCCURRENCE_KEY_DESC))
         request = HTTP.get(url; query)
-        return _handle_request(body -> JSON3.read(body), request)
+        return _handle_request(JSON3.read, request)
     end
     if limit > 300
         offsets = offset:300:(limit + offset)
         lastlimit = limit - last(offsets)
         results = occurrence_search(; limit=300, offset, kw...)
         for offset in offsets[begin+1:end-1]
-            nextresults = occurrence_search(; returntype, limit=300, offset, kw...)
+            nextresults = occurrence_search(; limit=300, offset, kw...)
             if length(nextresults) < 300
                 results = vcat(results, nextresults)
                 @info "$(length(results)) occurrences found, limit was $limit"
@@ -324,12 +324,12 @@ julia> country_counts.INDIA
 Occurrence counts have a complicated schema of allowed keyword combinations.
 You can access these from the GBIF api using `occurrence_count_schema()`.
 """
-function occurrence_inventory(type; kw...)
-    type in keys(OCCURRENCE_COUNT_INVENTORY) || throw(ArgumentError("$returntype not in $OCCURRENCE_COUNT_INVENTORY"))
-    url = _joinurl(OCCURRENCE_URL, "counts", type)
-    query = _format_query(kw, keys(OCCURRENCE_COUNT_INVENTORY[type]))
+function occurrence_inventory(returntype; kw...)
+    returntype in keys(OCCURRENCE_COUNT_INVENTORY) || throw(ArgumentError("$returntype not in $OCCURRENCE_COUNT_INVENTORY"))
+    url = _joinurl(OCCURRENCE_URL, "counts", returntype)
+    query = _format_query(kw, keys(OCCURRENCE_COUNT_INVENTORY[returntype]))
     request = HTTP.get(url; query)
-    return _handle_request(body -> JSON3.read(body), request)
+    return _handle_request(JSON3.read, request)
 end
 
 # Not exported
@@ -428,8 +428,8 @@ function occurrence_request(;
     query = pairs(_format_query(kw, keys(params)))
     predicates = [_predicate(params, k, v) for (k, v) in query]
     if !isnothing(geoDistance)
-        keys(geoDistance) == (latitude, longitude, distance) || error()
-        push!(predicates, (; type=:geoDistance, distance...))
+        keys(geoDistance) == (:latitude, :longitude, :distance) || error()
+        push!(predicates, (; type=:geoDistance, geoDistance...))
     end
     obj = (;
         format,
@@ -512,13 +512,13 @@ filename = GBIF2.occurrence_download(token)
 function occurrence_download(token=LAST_DOWNLOAD[]; filename=string(token, ".zip"))
     token = string(token)
     url = _joinurl(OCCURRENCE_DOWNLOAD_URL, "request", token)
-    println("Downloading $key to $filename")
+    println("Downloading $token to $filename")
     return HTTP.download(url, filename)
 end
 
 function _predicate(params, key, val)
     if val in (:isNull, :isNotNull)
-        (type=val, key=params[k])
+        (type=val, key=params[key])
     else
         (type=_valtype(val), key=params[key], value=_val(val))
     end

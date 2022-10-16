@@ -161,18 +161,19 @@ function species(sp::Species, args...; kw...)
     query = _bestquery(sp)
     species(last(first(query)), args...; kw...)
 end
-function species(key::Integer; kw...)
-    url = _joinurl(SPECIES_URL, string(key))
-    query = _format_query(kw, (:language,))
-    request = HTTP.get(url; query)
-    return _handle_request(Species, request)
-end
-function species(key::Integer, resulttype::Symbol; kw...)
-    resulttype in keys(SPECIES_RESULTTYPE) || throw(ArgumentError("resulttype $resulttype not in $(keys(SPECIES_RESULTTYPE))"))
-    url = _joinurl(SPECIES_URL, string(key), string(subpath))
-    query = _format_query(kw, SPECIES_RESULTTYPE[subpath])
-    request = HTTP.get(url; query)
-    return _handle_request(JSON3.read, request)
+function species(key::Integer; resulttype=nothing, kw...)
+    if isnothing(resulttype)
+        url = _joinurl(SPECIES_URL, string(key))
+        query = _format_query(kw, (:language,))
+        request = HTTP.get(url; query)
+        return _handle_request(Species, request)
+    else
+        resulttype in keys(SPECIES_RESULTTYPE) || throw(ArgumentError("resulttype $resulttype not in $(keys(SPECIES_RESULTTYPE))"))
+        url = _joinurl(SPECIES_URL, string(key), string(resulttype))
+        query = _format_query(kw, SPECIES_RESULTTYPE[resulttype])
+        request = HTTP.get(url; query)
+        return _handle_request(JSON3.read, request)
+    end
 end
 
 """

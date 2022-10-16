@@ -24,7 +24,7 @@ function _handle_request(f, request)
    if request.status == 200
        return f(request.body)
    else
-       error("Error making $T request: $(request.status)")
+       error("Error making request: $(request.status)")
    end
 end
 
