@@ -10,10 +10,10 @@ or use with the Tables.jl interface to convert to a DataFrame or e.g. CSV.
 """
 struct Table{T,A} <: AbstractVector{T}
     query::Dict{Symbol,Any}
-    offset::Int
-    limit::Int
+    offset::Int64
+    limit::Int64
     endOfRecords::Bool
-    count::Int
+    count::Int64
     results::A
 end
 Table{T}(query, raw::Union{AbstractString,AbstractVector{UInt8}}) where T = Table{T}(query, JSON3.read(raw))
