@@ -336,7 +336,7 @@ You can access these from the GBIF api using `occurrence_count_schema()`.
 function occurrence_inventory(returntype; kw...)
     returntype in keys(OCCURRENCE_COUNT_INVENTORY) || throw(ArgumentError("$returntype not in $OCCURRENCE_COUNT_INVENTORY"))
     url = _joinurl(OCCURRENCE_URL, "counts", returntype)
-    query = _format_query(kw, keys(OCCURRENCE_COUNT_INVENTORY[returntype]))
+    query = _format_query(kw, OCCURRENCE_COUNT_INVENTORY[returntype])
     request = HTTP.get(url; query)
     return _handle_request(JSON3.read, request)
 end
