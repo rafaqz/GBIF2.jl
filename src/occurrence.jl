@@ -4,7 +4,7 @@ const OCCURRENCE_DOWNLOAD_URL = GBIF_URL * "occurrence/download"
 
 const OCCURRENCE_SEARCH_KEYS = (:q, :basisOfRecord, :catalogNumber, :classKey, :collectionCode, :continent, :coordinateUncertaintyInMeters, :country, :crawlId, :datasetId, :datasetKey, :datasetName, :decimalLatitude, :decimalLongitude, :depth, :elevation, :establishmentMeans, :eventDate, :eventId, :familyKey, :gadmGid, :gadmLevel0Gid, :gadmLevel1Gid, :gadmLevel2Gid, :gadmLevel3Gid, :genusKey, :geometry, :hasCoordinate, :hasGeospatialIssue, :geoDistance, :identifiedBy, :identifiedByID, :institutionCode, :issue, :kingdomKey, :lastInterpreted, :license, :locality, :mediaType, :modified, :month, :networkKey, :occurrenceId, :occurrenceStatus, :orderKey, :organismId, :organismQuantity, :organismQuantityType, :otherCatalogNumbers, :phylumKey, :preparations, :programme, :projectId, :protocol, :publishingCountry, :publishingOrg, :recordNumber, :recordedBy, :recordedByID, :relativeOrganismQuantity, :repatriated, :sampleSizeUnit, :sampleSizeValue, :samplingProtocol, :scientificName, :speciesKey, :stateProvince, :subgenusKey, :taxonKey, :typeStatus, :verbatimScientificName, :verbatimTaxonId, :waterBody, :year, :facet, :facetMincount, :facetMultiselect, :paging, :offset, :limit)
 
-const OCCURRENCE_SUBPATHS = (:fragment, :verbatim, Symbol(""))
+const OCCURRENCE_SUBPATHS = (:fragment, :verbatim)
 
 const OCCURRENCE_COUNT_INVENTORY = (
     basisOfRecord = (),
@@ -36,11 +36,12 @@ Note that these queries do not all return all properties, and not all records co
 all properties in any case. Missing properties simply return `missing`.
 
 The possible properties of an `Occurrence` object are:
-$(occurrence_properties())
+$(keys(occurrence_properties()))
 """
 struct Occurrence
     obj::JSON3.Object
 end
+
 object(oc::Occurrence) = getfield(oc, :obj)
 Occurrence(raw::Union{AbstractString,AbstractVector{UInt8}}) = Occurrence(JSON3.read(raw))
 
@@ -54,13 +55,12 @@ function Base.getproperty(oc::Occurrence, k::Symbol)
     end
 end
 
-Tables.schema(::Occurrence) = Tables.schema(Occurrence)
-Tables.schema(::Type{<:Occurrence}) =
+_schema(::Type{<:Occurrence}) =
     Tables.Schema(keys(occurrence_properties()), values(occurrence_properties()))
 
 Tables.istable(::AbstractVector{Occurrence}) = true
 Tables.rowaccess(::AbstractVector{Occurrence}) = true
-Tables.schema(::AbstractVector{Occurrence}) = Tables.schema(Occurrence)
+Tables.schema(::AbstractVector{Occurrence}) = _schema(Occurrence)
 
 """
     occurrence(key; [returntype])
@@ -125,22 +125,30 @@ GBIF2.Occurrence({
        "http://rs.tdwg.org/dwc/terms/geodeticDatum": "WGS84",
     "http://rs.tdwg.org/dwc/terms/occurrenceStatus": "PRESENT"
 })
-``
+```
 """
-function occurrence(key; returntype=Symbol(""))
-    returntype in OCCURRENCE_SUBPATHS || throw(ArgumentError("$returntype not in $OCCURRENCE_SUBPATHS"))
-    url = _joinurl(OCCURRENCE_URL, key, returntype)
-    request = HTTP.get(url)
-    return _handle_request(Occurrence, request)
+occurrence(oc::Occurrence; kw...) = occurrence(oc.key; kw...)
+function occurrence(key; returntype=nothing)
+    url = _joinurl(OCCURRENCE_URL, key)
+    if isnothing(returntype)
+        request = HTTP.get(url)
+        return _handle_request(Occurrence, request)
+    else
+        returntype in OCCURRENCE_SUBPATHS || throw(ArgumentError("$returntype not in $OCCURRENCE_SUBPATHS"))
+        request = HTTP.get(_joinurl(url, returntype))
+        return _handle_request(JSON3.read, request)
+    end
 end
-function occurrence(oc::Occurrence; kw...)
-    occurrence(oc.datasetKey, oc.occurrenceID; kw...)
-end
-function occurrence(datasetKey, occurrenceID; returntype=Symbol(""))
-    returntype in OCCURRENCE_SUBPATHS || throw(ArgumentError("$returntype not in $OCCURRENCE_SUBPATHS"))
-    url = _joinurl(OCCURRENCE_URL, datasetKey, occurrenceID, returntype)
-    request = HTTP.get(url)
-    return _handle_request(Occurrence, request)
+function occurrence(datasetKey, occurrenceID; returntype=nothing)
+    url = _joinurl(OCCURRENCE_URL, datasetKey, occurrenceID)
+    if isnothing(returntype)
+        request = HTTP.get(url)
+        return _handle_request(Occurrence, request)
+    else
+        returntype in OCCURRENCE_SUBPATHS || throw(ArgumentError("$returntype not in $OCCURRENCE_SUBPATHS"))
+        request = HTTP.get(_joinurl(url, returntype))
+        return _handle_request(JSON3.read, request)
+    end
 end
 
 """
@@ -166,28 +174,29 @@ julia>
 ocs = occurrence_search(sp; continent=:AFRICA, limit=1000)
 [ Info: 522 occurrences found, limit was 1000
 522-element GBIF2.Table{GBIF2.Occurrence, Vector{JSON3.Object}}
-┌──────────────────┬─────────────────┬────────┬────────┬────────┬──────────┬──────────┬─────────┬────────────────
-│ decimalLongitude │ decimalLatitude │   year │  month │    day │  kingdom │   phylum │   class │         order ⋯
-│         Float64? │        Float64? │ Int64? │ Int64? │ Int64? │  String? │  String? │ String? │       String? ⋯
-├──────────────────┼─────────────────┼────────┼────────┼────────┼──────────┼──────────┼─────────┼────────────────
-│          missing │         missing │   2012 │      8 │     18 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          missing │         missing │   2010 │      1 │     29 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.2452 │        -20.2239 │   2009 │     10 │     26 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.2452 │        -20.2239 │   2009 │     11 │      5 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.2452 │        -20.2239 │   2009 │     11 │      5 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.2452 │        -20.2239 │   2009 │     11 │      4 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.2452 │        -20.2239 │   2009 │     11 │      5 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.2452 │        -20.2239 │   2009 │     11 │      4 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia │ Chordata │    Aves │ Falconiformes ⋯
-│        ⋮         │        ⋮        │   ⋮    │   ⋮    │   ⋮    │    ⋮     │    ⋮     │    ⋮    │       ⋮       ⋱
-└──────────────────┴─────────────────┴────────┴────────┴────────┴──────────┴──────────┴─────────┴────────────────
-                                                                                   75 columns and 507 rows omitted
+┌──────────────────┬─────────────────┬────────┬────────┬────────┬────────────
+│ decimalLongitude │ decimalLatitude │   year │  month │    day │  kingdom  ⋯
+│         Float64? │        Float64? │ Int64? │ Int64? │ Int64? │  String?  ⋯
+├──────────────────┼─────────────────┼────────┼────────┼────────┼────────────
+│          missing │         missing │   2012 │      8 │     18 │ Animalia  ⋯
+│          missing │         missing │   2010 │      1 │     29 │ Animalia  ⋯
+│          57.2452 │        -20.2239 │   2009 │     10 │     26 │ Animalia  ⋯
+│          57.2452 │        -20.2239 │   2009 │     11 │      5 │ Animalia  ⋯
+│          57.2452 │        -20.2239 │   2009 │     11 │      5 │ Animalia  ⋯
+│          57.2452 │        -20.2239 │   2009 │     11 │      4 │ Animalia  ⋯
+│          57.2452 │        -20.2239 │   2009 │     11 │      5 │ Animalia  ⋯
+│          57.2452 │        -20.2239 │   2009 │     11 │      4 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│          57.7667 │          -19.85 │   2007 │      6 │     19 │ Animalia  ⋯
+│        ⋮         │        ⋮        │   ⋮    │   ⋮    │   ⋮    │    ⋮      ⋱
+└──────────────────┴─────────────────┴────────┴────────┴────────┴────────────
+                                              78 columns and 507 rows omitted
+```
 
 # Arguments
 
@@ -380,7 +389,9 @@ recent request.
 # Keywords
 
 - `username`: String username for a gbif.org account
-- `type`: choose fro an `:and` or `:or` query.
+- `password`: String password for a gbif.org account. The password
+    will be entered in the REPL if this keyword is not used.
+- `type`: choose from an `:and` or `:or` query.
 
 Allowed query keywords are:
 `$(keys(occurrence_request_parameters()))`
@@ -414,7 +425,7 @@ function occurrence_request(species::Species; kw...)
     occurrence_request(; _bestquery(species)..., kw...)
 end
 function occurrence_request(;
-    username, notificationAddresses=nothing, format="SIMPLE_CSV", geoDistance=nothing, type="and", kw...
+    username, password=nothing, notificationAddresses=nothing, format="SIMPLE_CSV", geoDistance=nothing, type="and", kw...
 )
     notificationAddresses = if isnothing(notificationAddresses)
         (;)
@@ -426,9 +437,10 @@ function occurrence_request(;
     url = _joinurl(OCCURRENCE_DOWNLOAD_URL, "request")
     params = occurrence_request_parameters()
     query = pairs(_format_query(kw, keys(params)))
-    predicates = [_predicate(params, k, v) for (k, v) in query]
+    predicates = NamedTuple[_predicate(params, k, v) for (k, v) in query]
     if !isnothing(geoDistance)
-        keys(geoDistance) == (:latitude, :longitude, :distance) || error()
+        keys(geoDistance) == (:latitude, :longitude, :distance) ||
+            throw(ArgumentError("geoDistance must have keys `(:latitude, :longitude, :distance)`, has `$(keys(geoDistance))`"))
         push!(predicates, (; type=:geoDistance, geoDistance...))
     end
     obj = (;
@@ -440,9 +452,11 @@ function occurrence_request(;
             predicates,
        )
     )
-    x = Base.getpass("Enter your GBIF password")
-    passwd = read(x, String)
-    auth = Base64.base64encode(username * ":" * passwd)
+    if isnothing(password)
+        x = Base.getpass("Enter your GBIF password")
+        password = read(x, String)
+    end
+    auth = Base64.base64encode(username * ":" * password)
     headers = [
         "Authorization" => "Basic $auth",
         "Content-Type" => "application/json",
@@ -512,7 +526,6 @@ filename = GBIF2.occurrence_download(token)
 function occurrence_download(token=LAST_DOWNLOAD[]; filename=string(token, ".zip"))
     token = string(token)
     url = _joinurl(OCCURRENCE_DOWNLOAD_URL, "request", token)
-    println("Downloading $token to $filename")
     return HTTP.download(url, filename)
 end
 

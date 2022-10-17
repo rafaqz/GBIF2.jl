@@ -1,15 +1,22 @@
+# Generate documentation for keywords
 function _keydocs(descs, keys)
     doclines = (_keydocs(descs, k) for k in keys)
     # Return a block of text with all keywords documented
     return join(doclines, "\n")
 end
-_keydocs(descs, key::Symbol) = "- `$key`: $(descs[key])"
+function _keydocs(descs, key::Symbol)
+    desc1 = replace(descs[key], "\n" => " ")
+    return "- `$key`: $desc1"
+end
+
+# Generate documentation for arguments from a 
 function _argdocs(descs)
     doclines = (_argdocs(descs, k) for k in keys(descs))
     return join(doclines, "\n")
 end
 _argdocs(descs, key::Symbol) = "\n    - `:$key`: $(descs[key])"
 
+# Format a keywords for HTTP request and the GBIF api
 _format_query(kw, allowed_keywords) =
     _format_query(values(kw), allowed_keywords)
 function _format_query(nt::NamedTuple{K}, allowed_keywords) where K
@@ -20,6 +27,7 @@ function _format_query(nt::NamedTuple{K}, allowed_keywords) where K
     return Dict{Symbol,Any}(pairs(newkw))
 end
 
+# Apply `f` to request if it was successful
 function _handle_request(f, request)
    if request.status == 200
        return f(request.body)
@@ -45,5 +53,4 @@ function _clean_val(k::Symbol, v)
     end
 end
 
-_joinurl(arg1, args...) = string(arg1, map(x -> string("/", x), args)...)
-_joinurl(arg1...) = arg1
+_joinurl(a1, a2, args...) = string(a1, map(x -> string("/", x), (a2, args...))...)

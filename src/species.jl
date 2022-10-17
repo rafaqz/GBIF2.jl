@@ -30,8 +30,8 @@ const SPECIES_RESULTTYPE = (
 """
     Species
 
-Wrapper object for information returned by [`species`](@ref), [`species_list` ](@ref),
-[`species_match` ](@ref) or [`species_search`](@ref) queries. These often are species,
+Wrapper object for information returned by [`species`](@ref), [`species_list`](@ref),
+[`species_match`](@ref) or [`species_search`](@ref) queries. These often are species,
 but a more correctly taxa, as it may be e.g. "Aves" for all birds. We use `Species`
 for naming consistency with the GBIF API.
 
@@ -43,14 +43,14 @@ Note that these queries do not all return all properties, and not all records co
 all properties in any case. Missing properties simply return `missing`.
 
 The possible properties of a `Species` object are:
-$(species_properties())
+$(keys(species_properties()))
 """
 struct Species
     obj::JSON3.Object
 end
-object(sp::Species) = getfield(sp, :obj)
 Species(raw::Union{AbstractString,AbstractVector{UInt8}}) = Species(JSON3.read(raw))
 
+object(sp::Species) = getfield(sp, :obj)
 
 Base.propertynames(sp::Species) = keys(species_properties())
 function Base.getproperty(sp::Species, k::Symbol) 
@@ -62,13 +62,12 @@ function Base.getproperty(sp::Species, k::Symbol)
     end
 end
 
-Tables.schema(::Species) = Tables.schema(Species)
-Tables.schema(::Type{<:Species}) =
+_schema(::Type{<:Species}) =
     Tables.Schema(keys(species_properties()), values(species_properties()))
 
 Tables.istable(::AbstractVector{Species}) = true
 Tables.rowaccess(::AbstractVector{Species}) = true
-Tables.schema(::AbstractVector{Species}) = Tables.schema(Species)
+Tables.schema(::AbstractVector{Species}) = _schema(Species)
 
 """
     species(key; kw...)
@@ -107,8 +106,12 @@ UInt64, 1, Vector{UInt64}, Tuple{UnitRange{Int64}}, true}}}
 │  Metazoa │ Chordata │          Aves │ Falconiformes │ Falconidae │   Falco │ Falco p ⋯
 │    ⋮     │    ⋮     │       ⋮       │       ⋮       │     ⋮      │    ⋮    │         ⋱
 └──────────┴──────────┴───────────────┴───────────────┴────────────┴─────────┴──────────
-                                                          35 columns and 11 rows omitted
+                                                           35 columns and 11 rows omitted
 
+```
+
+And retrieve all the fields for one of the matches.
+```julia
 julia> species(tbl[6])
 GBIF2.Species({
                    "key": 102091853,
@@ -305,29 +308,29 @@ sp = species_search("Psittacula eques")
 # output
 20-element GBIF2.Table{GBIF2.Species, JSON3.Array{JSON3.Object, Vector{UInt8}, SubArray{UInt64, 1,
 Vector{UInt64}, Tuple{UnitRange{Int64}}, true}}}
-┌──────────┬──────────┬────────────────┬────────────────┬───────────────┬──────────────┬───────────
-│  kingdom │   phylum │          class │          order │        family │        genus │          ⋯
-│  String? │  String? │        String? │        String? │       String? │      String? │          ⋯
-├──────────┼──────────┼────────────────┼────────────────┼───────────────┼──────────────┼───────────
-│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
-│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │          ⋯
-│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │   Psitta ⋯
-│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │   Psitta ⋯
-│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │          ⋯
-│ Animalia │  missing │        missing │ Psittaciformes │ Psittaculidae │      missing │   Psitta ⋯
-│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │   Psitta ⋯
-│  missing │  missing │        missing │        missing │       missing │   Psittacula │   Psitta ⋯
-│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
-│ Animalia │  missing │           Aves │        missing │   Psittacidae │   Psittacula │   Psitta ⋯
-│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │    Psitt ⋯
-│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
-│ ANIMALIA │ CHORDATA │ PSITTACIFORMES │           AVES │   PSITTACIDAE │ Alexandrinus │ Alexandr ⋯
-│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │    Psitt ⋯
-│ Animalia │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │   Psitta ⋯
-│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │   Psitta ⋯
-│    ⋮     │    ⋮     │       ⋮        │       ⋮        │       ⋮       │      ⋮       │          ⋱
-└──────────┴──────────┴────────────────┴────────────────┴───────────────┴──────────────┴───────────
-                                                                      35 columns and 4 rows omitted
+┌──────────┬──────────┬────────────────┬────────────────┬───────────────┬──────────────┬──
+│  kingdom │   phylum │          class │          order │        family │        genus │ ⋯
+│  String? │  String? │        String? │        String? │       String? │      String? │ ⋯
+├──────────┼──────────┼────────────────┼────────────────┼───────────────┼──────────────┼──
+│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │ ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │ ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │ ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │ ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │      missing │ ⋯
+│ Animalia │  missing │        missing │ Psittaciformes │ Psittaculidae │      missing │ ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │ ⋯
+│  missing │  missing │        missing │        missing │       missing │   Psittacula │ ⋯
+│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │ ⋯
+│ Animalia │  missing │           Aves │        missing │   Psittacidae │   Psittacula │ ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │ ⋯
+│ Animalia │ Chordata │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │ ⋯
+│ ANIMALIA │ CHORDATA │ PSITTACIFORMES │           AVES │   PSITTACIDAE │ Alexandrinus │ ⋯
+│  Metazoa │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │ ⋯
+│ Animalia │ Chordata │           Aves │ Psittaciformes │   Psittacidae │   Psittacula │ ⋯
+│ Animalia │  missing │           Aves │ Psittaciformes │ Psittaculidae │   Psittacula │ ⋯
+│    ⋮     │    ⋮     │       ⋮        │       ⋮        │       ⋮       │      ⋮       │ ⋱
+└──────────┴──────────┴────────────────┴────────────────┴───────────────┴──────────────┴──
+                                                              37 columns and 4 rows omitted
 ```
 
 ## Keyword arguments

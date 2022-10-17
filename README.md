@@ -8,8 +8,10 @@
 The goals of GBIF2 is to follow the GBIF api as completely and correctly as possible.
 
 Its main design features are:
-- Single results are `Occurrence` or `Species` objects with all GBIF fields available using `object.fieldname`, 
-   returning missing if not returned by a specific query.
+
+- Single results are returned with type `Occurrence` or `Species`,
+   with all of the GBIF fields available using `object.fieldname`, 
+   These return missing if not returned by a specific query.
 - Multiple results are returned as a Tables.jl compatible `Table` of `Occurrence` or `Species` rows. 
     This `Table` can be converted to a `DataFrame` or writted directly to disk using CSV.jl and similar packages.
 - All GBIF enum keys are checked for correctness before querying so that only correct queries can be sent. 

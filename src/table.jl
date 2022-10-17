@@ -69,4 +69,4 @@ Base.propertynames(table::Table{Species}) = keys(species_properties())
 
 Tables.istable(::Table) = true
 Tables.rowaccess(::Table) = true
-Tables.schema(::Table{T}) where T = Tables.schema(T)
+Tables.schema(::Table{T}) where T = _schema(T)

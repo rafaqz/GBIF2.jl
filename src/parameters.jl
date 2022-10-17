@@ -287,15 +287,15 @@ const SPECIES_KEY_DESC = (
     genus = "Optional genus classification accepting a canonical name.",
     habitat = "Filters by the habitat. Currently only 3 major biomes are accepted in our Habitat enum",
     highertaxonKey = """
-        Filters by any of the higher Linnean rank keys. Note this is within the respective",
+        Filters by any of the higher Linnean rank keys. Note this is within the respective
         checklist and not searching nub keys across all checklists.
         """,
     hl = """
-        Set `hl=true` to highlight terms matching the query when in fulltext search fields.",
-        The highlight will be an emphasis tag of class 'gbifH1' e.g. `q="plant", hl=>true`.",
-        Fulltext search fields include title, keyword, country, publishing country, publishing organization title,",
-        hosting organization title, and description. One additional full text field is searched which includes",
-        information from metadata documents, but the text of this field is not returned in the response.
+        Set `hl=true` to highlight terms matching the query when in fulltext search fields.
+        The highlight will be an emphasis tag of class 'gbifH1' e.g. `q="plant", hl=>true`.
+        Fulltext search fields include title, keyword, country, publishing country, publishing organization title,
+        hosting organization title, and description. One additional full text field is searched which includes
+        information from metadata documents, but the text of this field is not returned in the response
         """,
     isExtinct = "Filters by extinction status (a boolean, e.g. isExtinct=>true)",
     issue = "A specific indexing issue as defined in our NameUsageIssue enum",
