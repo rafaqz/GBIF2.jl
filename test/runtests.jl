@@ -45,7 +45,7 @@ end
     @test GBIF2.query(table)[:q] == "Lalage newtoni" 
     @test GBIF2.limit(table) == 10
     @test GBIF2.offset(table) == 0
-    @test GBIF2.count(table) isa Int
+    @test GBIF2.count(table) isa Int64
     @test GBIF2.count(table) > 10
     @test GBIF2.endOfRecords(table) == false
 
@@ -79,7 +79,7 @@ end
     @test oc1.genus == "Hippophae"
     @test_throws ArgumentError species_search("Lalage newtoni"; not_a_keyword=2)
     results = occurrence_search(sp; returntype=:catalogNumber)
-    @test results isa AbstractVector{<:String} # TODO maybe it shouls be specialised to Int
+    @test results isa AbstractVector{<:String} # TODO maybe it should be specialised to Int
     results = occurrence_search("")
 end
 @testset "occurrence_count" begin
@@ -96,7 +96,7 @@ end
 @testset "occurrence_inventory" begin
     country_counts = occurrence_inventory(:countries)
     @test country_counts isa JSON3.Object 
-    @test country_counts.SPAIN isa Int
+    @test country_counts.SPAIN isa Int64
 end
 @testset "occurrence_request" begin
     # Need to look at the best way to test this given
