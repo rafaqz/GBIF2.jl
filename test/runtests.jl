@@ -95,7 +95,7 @@ end
         df = CSV.read("occurence_test.csv", DataFrame)
         foreach(enumerate(Tables.columns(df)), Tables.columns(DataFrame(results))) do (i, written), orig
             if i == 72
-                @test all(parse.(Int, orig) .== written)
+                @test all(parse.(Int64, orig) .== written)
             elseif i in [20, 45, 48, 49, 50, 51, 60, 61]
                 # skip
                 # 20 => DateTime, 45-6: Vector{String} => String
