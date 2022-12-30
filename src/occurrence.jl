@@ -48,7 +48,15 @@ Occurrence(raw::Union{AbstractString,AbstractVector{UInt8}}) = Occurrence(JSON3.
 Base.propertynames(sp::Occurrence) = keys(occurrence_properties())
 function Base.getproperty(oc::Occurrence, k::Symbol)
     if k in keys(object(oc))
-        return convert(occurrence_properties()[k], getproperty(object(oc), k))
+        prop = getproperty(object(oc), k)
+        # Convert JSON objects to json strings
+        if prop isa JSON3.Object
+            JSON3.write(prop)
+        elseif prop isa JSON3.Array{<:JSON3.Object}
+            JSON3.write.(prop)
+        else
+            convert(occurrence_properties()[k], prop)
+        end
     else
         k in keys(occurrence_properties()) || error("Occurrence has no field $k")
         return missing

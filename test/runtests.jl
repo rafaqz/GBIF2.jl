@@ -4,6 +4,7 @@ using HTTP
 using JSON3
 using DataFrames
 using Test
+using CSV
 
 # Aqua.test_ambiguities([GBIF2, Base, Core])
 Aqua.test_unbound_args(GBIF2)
@@ -59,6 +60,18 @@ end
 
     longtable = species_search("Acridotheres tristis"; limit=700)
     GBIF2.count(longtable)
+
+    @testset "species tables write to CSV" begin
+        CSV.write("species_test.csv", longtable)
+        df = CSV.read("species_test.csv", DataFrame)
+        foreach(enumerate(Tables.columns(df)), Tables.columns(DataFrame(longtable))) do (i, written), orig
+            if !(i == 34) # Vector{String} => String
+                @test all(map(written, orig) do w, o
+                    ismissing(w) && ismissing(o) || ismissing(w) && isempty(o) || w == o
+                end)
+            end
+        end
+    end
 end
 @testset "occurrence" begin
     ocs = occurrence_search(sp)
@@ -77,6 +90,22 @@ end
     oc1 = results[1]
     @test oc1 isa GBIF2.Occurrence
     @test oc1.genus == "Hippophae"
+    @testset "occurrence tables write to CSV" begin
+        CSV.write("occurence_test.csv", results)
+        df = CSV.read("occurence_test.csv", DataFrame)
+        foreach(enumerate(Tables.columns(df)), Tables.columns(DataFrame(results))) do (i, written), orig
+            if i == 72
+                @test all(parse.(Int64, orig) .== written)
+            elseif i in [20, 45, 48, 49, 50, 51, 60, 61]
+                # skip
+                # 20 => DateTime, 45-6: Vector{String} => String
+            else
+                @test map(written, orig) do w, o
+                    ismissing(w) && ismissing(o) || w == o
+                end |> all
+            end
+        end
+    end
     @test_throws ArgumentError species_search("Lalage newtoni"; not_a_keyword=2)
     results = occurrence_search(sp; returntype=:catalogNumber)
     @test results isa AbstractVector{<:String} # TODO maybe it should be specialised to Int
