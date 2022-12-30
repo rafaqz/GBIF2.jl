@@ -30,7 +30,7 @@ end
     class = species(sp.classKey)
     @test ismissing(class.species)
     @test class.class == "Aves"
-    @test class.vernacularName == "Birds"
+    @test class.vernacularName == "bird"
     @test_throws MethodError species("Lalage newtoni")
 end
 @testset "species_list" begin
