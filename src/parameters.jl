@@ -91,9 +91,9 @@ const OCCURRENCE_KEY_DESC = (
 )
 
 occurrence_properties() = (
+    # Added column for GeoInterface.jl compatibility
+    geometry = Union{Missing,Tuple{Float64,Float64}},
     # Moved these up from the order returned in json
-    decimalLongitude = Union{Missing,Float64},
-    decimalLatitude = Union{Missing,Float64},
     year = Union{Missing,Int64},
     month = Union{Missing,Int64},
     day = Union{Missing,Int64},
@@ -113,6 +113,8 @@ occurrence_properties() = (
     stateProvince = Union{Missing,String},
     eventDate = Union{Missing,String},
     # Original json order starts here
+    decimalLongitude = Union{Missing,Float64},
+    decimalLatitude = Union{Missing,Float64},
     key = Union{Missing,Int64},
     datasetKey = Union{Missing,String},
     publishingOrgKey = Union{Missing,String},
