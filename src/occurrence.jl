@@ -238,7 +238,7 @@ $(_keydocs(OCCURRENCE_KEY_DESC, keys(OCCURRENCE_KEY_DESC)))
 """
 function occurrence_search end
 function occurrence_search(species::Species; kw...)
-    occurrence_search(; q=_bestquery(species)[1][2], kw...)
+    occurrence_search(; _bestquery(species)..., kw...)
 end
 occurrence_search(q; kw...) = occurrence_search(; q, kw...)
 function occurrence_search(; returntype=nothing, limit=20, offset=0, kw...)
@@ -246,7 +246,7 @@ function occurrence_search(; returntype=nothing, limit=20, offset=0, kw...)
         allowed_rt = keys(OCCURRENCE_SEARCH_RETURNTYPE)
         returntype in allowed_rt || throw(ArgumentError("$returntype not in $allowed_rt"))
         url = _joinurl(OCCURRENCE_SEARCH_URL, returntype)
-        query = _format_query((; limit, kw...), keys(OCCURRENCE_KEY_DESC))
+        query = _format_query((; limit, q = kw[1]), keys(OCCURRENCE_KEY_DESC))
         request = HTTP.get(url; query)
         return _handle_request(JSON3.read, request)
     end
