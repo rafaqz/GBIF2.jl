@@ -90,7 +90,7 @@ end
     results = occurrence_search(sp)
     oc1 = results[1]
     @test oc1 isa GBIF2.Occurrence
-    @test oc1.genus == "Hippophae"
+    @test all(results.species .== "Coracina newtoni")
     @testset "occurrence tables write to CSV" begin
         CSV.write("occurence_test.csv", results)
         df = CSV.read("occurence_test.csv", DataFrame)
@@ -110,7 +110,7 @@ end
         end
     end
     @test_throws ArgumentError species_search("Lalage newtoni"; not_a_keyword=2)
-    results = occurrence_search(sp; returntype=:catalogNumber)
+    results = occurrence_search(returntype=:occurrenceId, q = "https://www.inaturalist.org/observations")
     @test results isa AbstractVector{<:String} # TODO maybe it should be specialised to Int
     results = occurrence_search("")
 end
