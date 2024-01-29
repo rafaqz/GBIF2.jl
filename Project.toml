@@ -1,7 +1,7 @@
 name = "GBIF2"
 uuid = "dedd4f52-e074-43bf-924d-d6bce14ad628"
 authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
-version = "0.2"
+version = "0.2.1"
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
