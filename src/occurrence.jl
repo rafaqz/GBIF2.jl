@@ -235,7 +235,7 @@ $(_argdocs(OCCURRENCE_SEARCH_RETURNTYPE))
 # Keywords
 $EXTENT_KEYWORD
 
-For all other keywords we use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/species).
+For all other keywords we use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/occurrence).
 
 You can find keyword enum values with the `[GBIF2.enum](@ref)` function.
 
