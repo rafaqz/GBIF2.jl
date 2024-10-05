@@ -291,13 +291,13 @@ function occurrence_search(;
 end
 
 _maybe_lonlat_kw(::Nothing) = (;)
-function _maybe_lonlat_kw(ext)
+function _maybe_lonlat_kw(extent)
     ext = GI.extent(extent) # Either return or calculate the extent
     (; decimalLongitude=ext.X, decimalLatitude=ext.Y)
 end
 
 _maybe_geometry_kw(::Nothing) = (;)
-_maybe_geometry_kw(geometry::Nothing) = (; geometry=convert(String, GI.astext(geometry)))
+_maybe_geometry_kw(geometry) = (; geometry=convert(String, GI.astext(geometry)))
 
 """
     occurrence_count(species::Species; kw...)
@@ -470,7 +470,14 @@ function occurrence_request(species::Species; kw...)
     occurrence_request(; _bestquery(species)..., kw...)
 end
 function occurrence_request(;
-    username, password=nothing, notificationAddresses=nothing, format="SIMPLE_CSV", geoDistance=nothing, type="and", kw...
+    username,
+    password=nothing,
+    notificationAddresses=nothing,
+    format="SIMPLE_CSV",
+    geoDistance=nothing,
+    extent=nothing,
+    type="and",
+    kw...
 )
     lonlat_kw = _maybe_lonlat_kw(extent)
     notificationAddresses = if isnothing(notificationAddresses)

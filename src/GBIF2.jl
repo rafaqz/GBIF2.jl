@@ -7,7 +7,15 @@ module GBIF2
     read(path, String)
 end GBIF2
 
-using Base64, Dates, HTTP, JSON3, PrettyTables, Tables
+using Dates
+
+import Base64
+import JSON3
+import HTTP
+import PrettyTables
+import Tables
+import GeoInterface as GI
+import WellKnownGeometry
 
 export species, species_list, species_match, species_search
 export occurrence, occurrence_search, occurrence_count, occurrence_inventory, occurrence_request, occurrence_download
