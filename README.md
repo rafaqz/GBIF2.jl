@@ -19,6 +19,8 @@ Its main design features are:
 - A `limit` above `300` items at a time is allowed, unlike in the original API, by making
     multiple reuests and joining the results.
 - For even larger queries, download requests are handled with gbif.org account authentication.
+- Extents and geometries from Extents.jl and GeoInterface.jl can be used to
+  subset occurrence records.
 
 ## A quick example
 
