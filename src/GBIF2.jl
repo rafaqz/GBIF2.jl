@@ -11,10 +11,11 @@ using Dates
 
 import Base64
 import JSON3
+import GeoInterface as GI
+import GeoFormatTypes as GFT
 import HTTP
 import PrettyTables
 import Tables
-import GeoInterface as GI
 import WellKnownGeometry
 
 export species, species_list, species_match, species_search

@@ -23,6 +23,12 @@ const OCCURRENCE_SEARCH_RETURNTYPE = (
     institutionCode = "Search that returns matching institution codes. Table are ordered by relevance.",
 )
 
+const EXTENT_KEYWORD = """
+- `extent`: Any object that GeoInterface.jl can calaculate or retrieve an `Extents.Extent` 
+    for using `GeoInterface.extent(extent)`. This will be converted to regular 
+    GBIF `decimalLatitude` and `decimalLongitude` keywords.
+"""
+
 
 """
     Occurrence
@@ -227,8 +233,9 @@ ocs = occurrence_search(sp; continent=:AFRICA, limit=1000)
 $(_argdocs(OCCURRENCE_SEARCH_RETURNTYPE))
 
 # Keywords
+$EXTENT_KEYWORD
 
-We use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/species).
+For all other keywords we use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/species).
 
 You can find keyword enum values with the `[GBIF2.enum](@ref)` function.
 
@@ -298,6 +305,8 @@ end
 
 _maybe_geometry_kw(::Nothing) = (;)
 _maybe_geometry_kw(geometry) = (; geometry=convert(String, GI.astext(geometry)))
+_maybe_geometry_kw(geometry::Union{GFT.AbstractWellKnownText,AbstractString}) = 
+    (; geometry=convert(String, geometry))
 
 """
     occurrence_count(species::Species; kw...)
@@ -433,6 +442,7 @@ recent request.
 
 # Keywords
 
+$EXTENT_KEYWORD
 - `username`: String username for a gbif.org account
 - `password`: String password for a gbif.org account. The password
     will be entered in the REPL if this keyword is not used.
