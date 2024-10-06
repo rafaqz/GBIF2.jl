@@ -23,6 +23,12 @@ const OCCURRENCE_SEARCH_RETURNTYPE = (
     institutionCode = "Search that returns matching institution codes. Table are ordered by relevance.",
 )
 
+const EXTENT_KEYWORD = """
+- `extent`: Any object that GeoInterface.jl can calaculate or retrieve an `Extents.Extent` 
+    for using `GeoInterface.extent(extent)`. This will be converted to regular 
+    GBIF `decimalLatitude` and `decimalLongitude` keywords.
+"""
+
 
 """
     Occurrence
@@ -227,8 +233,9 @@ ocs = occurrence_search(sp; continent=:AFRICA, limit=1000)
 $(_argdocs(OCCURRENCE_SEARCH_RETURNTYPE))
 
 # Keywords
+$EXTENT_KEYWORD
 
-We use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/species).
+For all other keywords we use parameters exactly as in the [GBIF api](https://www.gbif.org/developer/occurrence).
 
 You can find keyword enum values with the `[GBIF2.enum](@ref)` function.
 
@@ -241,21 +248,33 @@ function occurrence_search(species::Species; kw...)
     occurrence_search(; _bestquery(species)..., kw...)
 end
 occurrence_search(q; kw...) = occurrence_search(; q, kw...)
-function occurrence_search(; returntype=nothing, limit=20, offset=0, kw...)
+function occurrence_search(; 
+    returntype=nothing, 
+    geometry=nothing,
+    extent=nothing,
+    limit=20, 
+    offset=0, 
+    kw...
+)
+    lonlat_kw = _maybe_lonlat_kw(extent)
+    geometry_kw = _maybe_geometry_kw(geometry)
     if !isnothing(returntype)
         allowed_rt = keys(OCCURRENCE_SEARCH_RETURNTYPE)
         returntype in allowed_rt || throw(ArgumentError("$returntype not in $allowed_rt"))
         url = _joinurl(OCCURRENCE_SEARCH_URL, returntype)
-        query = _format_query((; limit, q = kw[1]), keys(OCCURRENCE_KEY_DESC))
+        query_nt = (; limit, lonlat_kw..., geometry_kw..., kw...)
+        query = _format_query(query_nt, keys(OCCURRENCE_KEY_DESC))
         request = HTTP.get(url; query)
         return _handle_request(JSON3.read, request)
     end
     if limit > 300
         offsets = offset:300:(limit + offset)
         lastlimit = limit - last(offsets)
-        results = occurrence_search(; limit=300, offset, kw...)
+        results = occurrence_search(; limit=300, offset, lonlat_kw..., geometry_kw..., kw...)
         for offset in offsets[begin+1:end-1]
-            nextresults = occurrence_search(; limit=300, offset, kw...)
+            nextresults = occurrence_search(; 
+                limit=300, offset, lonlat_kw..., geometry_kw..., kw...
+            )
             if length(nextresults) < 300
                 results = vcat(results, nextresults)
                 @info "$(length(results)) occurrences found, limit was $limit"
@@ -264,16 +283,30 @@ function occurrence_search(; returntype=nothing, limit=20, offset=0, kw...)
                 results = vcat(results, nextresults)
             end
         end
-        lastresult = occurrence_search(; limit=lastlimit, offset=last(offsets), kw...)
+        lastresult = occurrence_search(; 
+            limit=lastlimit, offset=last(offsets), lonlat_kw..., geometry_kw..., kw...
+        )
         return vcat(results, lastresult)
     else
         # Make a single request
         url = OCCURRENCE_SEARCH_URL
-        query = _format_query((; limit, offset, kw...), keys(OCCURRENCE_KEY_DESC))
+        query_nt = (; limit, offset, lonlat_kw..., geometry_kw..., kw...)
+        query = _format_query(query_nt, keys(OCCURRENCE_KEY_DESC))
         request = HTTP.get(url; query)
         return _handle_request(body -> Table{Occurrence}(query, body), request)
     end
 end
+
+_maybe_lonlat_kw(::Nothing) = (;)
+function _maybe_lonlat_kw(extent)
+    ext = GI.extent(extent) # Either return or calculate the extent
+    (; decimalLongitude=ext.X, decimalLatitude=ext.Y)
+end
+
+_maybe_geometry_kw(::Nothing) = (;)
+_maybe_geometry_kw(geometry) = (; geometry=convert(String, GI.astext(geometry)))
+_maybe_geometry_kw(geometry::Union{GFT.AbstractWellKnownText,AbstractString}) = 
+    (; geometry=convert(String, geometry))
 
 """
     occurrence_count(species::Species; kw...)
@@ -409,6 +442,7 @@ recent request.
 
 # Keywords
 
+$EXTENT_KEYWORD
 - `username`: String username for a gbif.org account
 - `password`: String password for a gbif.org account. The password
     will be entered in the REPL if this keyword is not used.
@@ -446,8 +480,16 @@ function occurrence_request(species::Species; kw...)
     occurrence_request(; _bestquery(species)..., kw...)
 end
 function occurrence_request(;
-    username, password=nothing, notificationAddresses=nothing, format="SIMPLE_CSV", geoDistance=nothing, type="and", kw...
+    username,
+    password=nothing,
+    notificationAddresses=nothing,
+    format="SIMPLE_CSV",
+    geoDistance=nothing,
+    extent=nothing,
+    type="and",
+    kw...
 )
+    lonlat_kw = _maybe_lonlat_kw(extent)
     notificationAddresses = if isnothing(notificationAddresses)
         (;)
     elseif notificationAddresses isa AbstractString
@@ -457,7 +499,8 @@ function occurrence_request(;
     end
     url = _joinurl(OCCURRENCE_DOWNLOAD_URL, "request")
     params = occurrence_request_parameters()
-    query = pairs(_format_query(kw, keys(params)))
+    query_nt = (; lonlat_kw..., kw...)
+    query = pairs(_format_query(query_nt, keys(params)))
     predicates = NamedTuple[_predicate(params, k, v) for (k, v) in query]
     if !isnothing(geoDistance)
         keys(geoDistance) == (:latitude, :longitude, :distance) ||

@@ -1,4 +1,5 @@
 using GBIF2
+import GeoInterface as GI
 using Aqua
 using HTTP
 using JSON3
@@ -114,6 +115,58 @@ end
     @test results isa AbstractVector{<:String} # TODO maybe it should be specialised to Int
     results = occurrence_search("")
 end
+
+@testset "occurrence_search with extent limits values to extent" begin
+    extent = GI.Extent(X=(50, 51), Y=(60, 61))
+    tbl = @test_nowarn occurrence_search("Aves"; extent)
+    @test tbl isa GBIF2.Table{GBIF2.Occurrence}
+    @test all(tbl.geometry) do (x, y)
+        x >= 50 && x <= 51 && y >= 60 && y <= 61
+    end
+end
+
+@testset "occurrence_search with extent limits values to extent" begin
+    # Query using an extent
+    extent = GI.Extent(X=(50, 51), Y=(60, 61))
+    ext_tbl = @test_nowarn occurrence_search("Aves"; extent)
+    @test ext_tbl isa GBIF2.Table{GBIF2.Occurrence}
+    @test all(ext_tbl.geometry) do (x, y)
+        x >= 50 && x <= 51 && y >= 60 && y <= 61
+    end
+
+    # Use a squareg geometry matching the extent
+    geometry = GI.Polygon(GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)]))
+    geom_tbl = @test_nowarn occurrence_search("Aves"; geometry)
+    @test all(geom_tbl.geometry) do (x, y)
+        x >= 50 && x <= 51 && y >= 60 && y <= 61
+    end
+    @test geom_tbl isa GBIF2.Table{GBIF2.Occurrence}
+    @test all(geom_tbl.geometry) do (x, y)
+        x >= 50 && x <= 51 && y >= 60 && y <= 61
+    end
+
+    # Using well known text directly
+    wkt = GI.astext(GI.Polygon([GI.LinearRing([(50, 60), (50, 61), (51, 61), (51, 60), (50, 60)])]))
+    wkt_tbl = @test_nowarn occurrence_search("Aves"; geometry=wkt)
+    @test wkt_tbl isa GBIF2.Table{GBIF2.Occurrence}
+    @test all(wkt_tbl.geometry) do (x, y)
+        x >= 50 && x <= 51 && y >= 60 && y <= 61
+    end
+
+    # Use the extent of the geometry
+    geom_ext_tbl = @test_nowarn occurrence_search("Aves"; extent=geometry)
+    @test geom_ext_tbl isa GBIF2.Table{GBIF2.Occurrence}
+    @test all(geom_ext_tbl.geometry) do (x, y)
+        x >= 50 && x <= 51 && y >= 60 && y <= 61
+    end
+
+    # Test that the geometry and extent give the same results
+    @test sort(ext_tbl.geometry) == 
+          sort(geom_ext_tbl.geometry) == 
+          sort(wkt_tbl.geometry) == 
+          sort(geom_tbl.geometry)
+end
+
 @testset "occurrence_count" begin
     c1 = occurrence_count(sp)
     @test c1 isa Int64
@@ -141,6 +194,9 @@ end
     @test_throws HTTP.ExceptionRequest.StatusError occurrence_request(sp; username="test", password="test", notificationAddresses=["test@email.com"])
     @test_throws ArgumentError occurrence_request(sp; username="test", password="test", geoDistance=(wrong=1, keys=2))
     @test_throws HTTP.ExceptionRequest.StatusError occurrence_request(sp; username="test", password="test", geoDistance=(latitude=1, longitude=2, distance=3))
+    @test_throws HTTP.ExceptionRequest.StatusError occurrence_request(sp; 
+        extent=GI.Extent(X=(50, 51), Y=(50, 51)), username="test", password="test",
+    )
 end
 @testset "occurrence_download" begin
     test_key = "12345"
