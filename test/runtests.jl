@@ -16,6 +16,7 @@ using CSV
 end
 
 sp = species_match("Lalage newtoni"; class="Aves", verbose=true)
+results = occurrence_search(sp)
 
 @testset "species_match" begin
     @test sp isa GBIF2.Species
@@ -87,7 +88,6 @@ end
     @test oc_verbatim isa JSON3.Object
 end
 @testset "occurrence_search" begin
-    results = occurrence_search(sp)
     oc1 = results[1]
     @test oc1 isa GBIF2.Occurrence
     @test all(results.species .== "Coracina newtoni")
@@ -172,4 +172,22 @@ end
             @test names(df) == string.(collect(Tables.propertynames(sps)))
         end
     end
+end
+
+@testset "subset" begin
+    result_subset = results[1:10]
+    @test result_subset isa GBIF2.Table{GBIF2.Occurrence, Vector{JSON3.Object}}
+    @test length(result_subset) == 10
+
+    result_view = view(results, 1:10)
+    @test result_view isa GBIF2.Table{GBIF2.Occurrence, <:SubArray{JSON3.Object}}
+    @test length(result_view) == 10
+
+    result_tablesubset = Tables.subset(results, 1:10)
+    @test GBIF2.results(result_tablesubset) == GBIF2.results(result_subset)
+    @test typeof(result_tablesubset) == typeof(result_subset)
+
+    result_tableview = Tables.subset(results, 1:10, viewhint = true)
+    @test GBIF2.results(result_tableview) == GBIF2.results(result_view)
+    @test typeof(result_tableview) == typeof(result_view)
 end
