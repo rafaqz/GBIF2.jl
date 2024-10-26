@@ -16,6 +16,7 @@ using CSV
 end
 
 sp = species_match("Lalage newtoni"; class="Aves", verbose=true)
+ocstable = occurrence_search(sp)
 
 @testset "species_match" begin
     @test sp isa GBIF2.Species
@@ -87,14 +88,14 @@ end
     @test oc_verbatim isa JSON3.Object
 end
 @testset "occurrence_search" begin
-    results = occurrence_search(sp)
-    oc1 = results[1]
+    typeof(sp)
+    oc1 = ocstable[1]
     @test oc1 isa GBIF2.Occurrence
-    @test all(results.species .== "Coracina newtoni")
+    @test all(ocstable.species .== "Coracina newtoni")
     @testset "occurrence tables write to CSV" begin
-        CSV.write("occurence_test.csv", results)
+        CSV.write("occurence_test.csv", ocstable)
         df = CSV.read("occurence_test.csv", DataFrame)
-        foreach(enumerate(Tables.columns(df)), Tables.columns(DataFrame(results))) do (i, written), orig
+        foreach(enumerate(Tables.columns(df)), Tables.columns(DataFrame(ocstable))) do (i, written), orig
             if i == 73
                 @test all(parse.(Int64, orig) .== written)
                 nothing
@@ -172,4 +173,22 @@ end
             @test names(df) == string.(collect(Tables.propertynames(sps)))
         end
     end
+end
+
+@testset "subset" begin
+    result_subset = ocstable[1:10]
+    @test result_subset isa GBIF2.Table{GBIF2.Occurrence, Vector{JSON3.Object}}
+    @test length(result_subset) == 10
+
+    result_view = view(ocstable, 1:10)
+    @test result_view isa GBIF2.Table{GBIF2.Occurrence, <:SubArray{JSON3.Object}}
+    @test length(result_view) == 10
+
+    result_tablesubset = Tables.subset(ocstable, 1:10)
+    @test GBIF2.results(result_tablesubset) == GBIF2.results(result_subset)
+    @test typeof(result_tablesubset) == typeof(result_subset)
+
+    result_tableview = Tables.subset(ocstable, 1:10, viewhint = true)
+    @test GBIF2.results(result_tableview) == GBIF2.results(result_view)
+    @test typeof(result_tableview) == typeof(result_view)
 end

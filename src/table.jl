@@ -40,9 +40,24 @@ count(t::Table) = getfield(t, :count)
 results(t::Table) = getfield(t, :results)
 
 Base.getindex(table::Table{T}, i::Int) where T = T(getindex(results(table), i))
+
+for f in (:getindex, :view)
+    @eval function Base.$f(table::Table{T}, inds) where T
+        objects = Base.$f(results(table), inds)
+        Table{T,typeof(objects)}(
+            query(table), 
+            offset(table), 
+            limit(table), 
+            endOfRecords(table), 
+            length(objects), 
+            objects
+        )
+    end
+end
+
 Base.size(table::Table, args...) = size(results(table), args...)
 function Base.show(io::IO, mime::MIME"text/plain", table::Table)
-    print(io, length(table), "-element ", typeof(table))
+    println(io, length(table), "-element ", typeof(table))
     PrettyTables.pretty_table(io, table)
 end
 function Base.vcat(tables::Table{T}...) where T
@@ -70,3 +85,6 @@ Base.propertynames(table::Table{Species}) = keys(species_properties())
 Tables.istable(::Table) = true
 Tables.rowaccess(::Table) = true
 Tables.schema(::Table{T}) where T = _schema(T)
+@inline function Tables.subset(table::Table, inds; viewhint::Union{Bool, Nothing}=nothing)
+    viewhint === true ? view(table, inds) : table[inds]
+end
