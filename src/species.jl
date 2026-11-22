@@ -53,26 +53,13 @@ Species(raw::Union{AbstractString,AbstractVector{UInt8}}) = Species(JSON3.read(r
 object(sp::Species) = getfield(sp, :obj)
 
 Base.propertynames(sp::Species) = keys(species_properties())
-function Base.getproperty(sp::Species, k::Symbol)
-    obj = object(sp)
-    if k === :synonym && !haskey(obj, :synonym)
-        return _synonym_from_status(obj)
-    elseif k in keys(obj)
-        return convert(species_properties()[k], getproperty(obj, k))
+function Base.getproperty(sp::Species, k::Symbol) 
+    if k in keys(object(sp)) 
+        return convert(species_properties()[k], getproperty(object(sp), k)) 
     else
         k in keys(species_properties()) || error("Species has no field $k")
         return missing
     end
-end
-
-# GBIF's `species/match` and `species/{key}` endpoints no longer return the
-# `synonym` boolean directly, only `status`/`taxonomicStatus`. Derive it the
-# same way GBIF's own backend used to: anything other than ACCEPTED/DOUBTFUL
-# counts as a synonym.
-function _synonym_from_status(obj::JSON3.Object)
-    status = get(obj, :status, get(obj, :taxonomicStatus, nothing))
-    isnothing(status) && return missing
-    return !(status === "ACCEPTED" ||  status == "DOUBTFUL")
 end
 
 _schema(::Type{<:Species}) =
