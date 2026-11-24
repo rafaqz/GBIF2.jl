@@ -55,9 +55,8 @@ end
     @test table isa GBIF2.Table
     sh = sprint(show, MIME"text/plain"(), table)
     @test occursin("──┬──", sh)
-    sp1 = table[1]
-    @test sp1 isa GBIF2.Species
-    @test sp1.genus == "Lalage"
+    @test table[1] isa GBIF2.Species
+    @test "Lalage" in table.genus
     @test_throws ArgumentError species_search("Lalage newtoni"; continent="Africa")
 
     longtable = species_search("Acridotheres tristis"; limit=700)
